@@ -253,3 +253,9 @@
 .btn-secondary { background: white; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 8px; color: #4a5568; cursor: pointer; }
 .btn-orange { background: #ff7a00; color: white; border: none; }
 .btn-danger { background: #f56565; color: white; border: none; }
+
+/* Add this to your CSS file */
+.status-toggle.closed-active { 
+    background: #fff5f5; 
+    color: #f56565; 
+}

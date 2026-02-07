@@ -21,6 +21,9 @@ router.get('/test-db', applicationController.testDb);
 // GET /api/jobs
 router.get('/jobs', applicationController.getJobs);
 
+// GET /api/applicants (NEW ROUTE ADDED HERE)
+router.get('/applicants', applicationController.getApplicants);
+
 // POST /api/apply (Uses Multer middleware + Controller logic)
 router.post('/apply', uploadFields, applicationController.submitApplication);
 

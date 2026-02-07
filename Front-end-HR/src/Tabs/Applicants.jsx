@@ -1,72 +1,70 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios'; 
 import { ChevronLeft, ChevronRight, Eye, Download, ChevronDown } from 'lucide-react';
 
 const Applicants = () => {
+  // 1. STATE: Store real data here
+  const [applicants, setApplicants] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Filters
   const [statusFilter, setStatusFilter] = useState('All');
   const [positionFilter, setPositionFilter] = useState('All Positions');
   const [branchFilter, setBranchFilter] = useState('All Branches');
+  const [searchQuery, setSearchQuery] = useState(''); 
+  
+  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  // Dummy Data with 7 total applicants
-  const allApplicants = [
-    { id: 'APP001', name: 'Juan Dela Cruz', email: 'juan.delacruz@email.com', phone: '+63 912 345 6789', date: '01-15-2025', status: 'APPLIED', position: 'Licensed Customs Broker', branch: 'Manila (Main)' },
-    { id: 'APP002', name: 'Maria Santos', email: 'maria.santos@email.com', phone: '+63 923 456 7890', date: '01-14-2025', status: 'APPLIED', position: 'Import & Export Head', branch: 'Cebu Branch' },
-    { id: 'APP003', name: 'Pedro Reyes', email: 'pedro.reyes@email.com', phone: '+63 934 567 8901', date: '01-13-2025', status: 'HIRED', position: 'Messenger / Logistics', branch: 'Davao Branch' },
-    { id: 'APP004', name: 'Ana Garcia', email: 'ana.garcia@email.com', phone: '+63 945 678 9012', date: '01-12-2025', status: 'INTERVIEW', position: 'Documentation Head', branch: 'Manila (Main)' },
-    { id: 'APP005', name: 'Jose Mendoza', email: 'jose.mendoza@email.com', phone: '+63 956 789 0123', date: '01-11-2025', status: 'INTERVIEW', position: 'Brokerage Specialist', branch: 'Cebu Branch' },
-    { id: 'APP006', name: 'Liza Soberano', email: 'liza.s@email.com', phone: '+63 967 890 1234', date: '01-10-2025', status: 'APPLIED', position: 'HR Assistant', branch: 'Manila (Main)' },
-    { id: 'APP007', name: 'Ricardo Dalisay', email: 'cardodalisay@email.com', phone: '+63 978 901 2345', date: '01-09-2025', status: 'HIRED', position: 'Security Lead', branch: 'Davao Branch' },
-  ];
+  // --- 2. FETCH DATA FROM BACKEND ---
+  useEffect(() => {
+    const fetchApplicants = async () => {
+      setLoading(true);
+      try {
+        // Calls the new route we created
+        const response = await axios.get('http://localhost:5000/api/applicants');
+        setApplicants(response.data);
+      } catch (error) {
+        console.error('Error fetching applicants:', error);
+      }
+      setLoading(false);
+    };
 
-  // Positions and Branches lists for dropdowns
-  const positions = [
-    'All Positions',
-    'Licensed Customs Broker',
-    'Import & Export Head',
-    'Documentation Head',
-    'Brokerage Specialist',
-    'Messenger / Logistics',
-    'HR Assistant',
-    'Security Lead'
-  ];
+    fetchApplicants();
+  }, []);
 
-  const branches = [
-    'All Branches',
-    'Manila (Main)',
-    'Cebu Branch',
-    'Davao Branch',
-    'Subic Branch'
-  ];
+  // --- 3. DYNAMIC FILTERS ---
+  const positions = ['All Positions', ...new Set(applicants.map(item => item.position))];
+  const branches = ['All Branches', ...new Set(applicants.map(item => item.branch))];
 
-  // Multi-criteria Filtering Logic
-  const filteredData = allApplicants.filter(app => {
-    const matchesStatus = statusFilter === 'All' || app.status === statusFilter.toUpperCase();
+  // --- 4. FILTERING LOGIC ---
+  const filteredData = applicants.filter(app => {
+    const matchesStatus = statusFilter === 'All' || app.status.toLowerCase() === statusFilter.toLowerCase();
     const matchesPosition = positionFilter === 'All Positions' || app.position === positionFilter;
     const matchesBranch = branchFilter === 'All Branches' || app.branch === branchFilter;
+    const matchesSearch = 
+        app.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        app.id.toLowerCase().includes(searchQuery.toLowerCase());
     
-    return matchesStatus && matchesPosition && matchesBranch;
+    return matchesStatus && matchesPosition && matchesBranch && matchesSearch;
   });
 
-  // Pagination Logic
+  // --- 5. PAGINATION LOGIC ---
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
 
   const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setCurrentPage(newPage);
-    }
+    if (newPage >= 1 && newPage <= totalPages) setCurrentPage(newPage);
   };
 
-  // Reset pagination when any filter changes
   const updateStatus = (val) => { setStatusFilter(val); setCurrentPage(1); };
-  const updatePosition = (e) => { setPositionFilter(e.target.value); setCurrentPage(1); };
-  const updateBranch = (e) => { setBranchFilter(e.target.value); setCurrentPage(1); };
 
   return (
     <div className="applicants-container">
+      {/* CSS STYLES */}
       <style>{`
         .applicants-container { display: flex; flex-direction: column; gap: 20px; font-family: 'Inter', sans-serif; }
         .tab-title-area { display: flex; align-items: center; gap: 12px; margin-bottom: 5px; }
@@ -82,19 +80,7 @@ const Applicants = () => {
         .search-input:focus { border-color: #5d9cec; }
         
         .select-wrapper { position: relative; flex: 1; }
-        .filter-select { 
-          width: 100%; 
-          padding: 12px 16px; 
-          padding-right: 40px;
-          border: 1px solid #e2e8f0; 
-          border-radius: 8px; 
-          background: white; 
-          cursor: pointer; 
-          color: #4a5568; 
-          font-size: 0.9rem;
-          appearance: none;
-          outline: none;
-        }
+        .filter-select { width: 100%; padding: 12px 16px; padding-right: 40px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; cursor: pointer; color: #4a5568; font-size: 0.9rem; appearance: none; outline: none; }
         .filter-select:focus { border-color: #5d9cec; }
         .select-icon { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #a0aec0; pointer-events: none; }
         
@@ -105,11 +91,12 @@ const Applicants = () => {
         
         .bold { font-weight: 600; color: #2d3748; }
         .contact-info { font-size: 0.75rem; color: #718096; margin-bottom: 2px; }
-        .status-pill { padding: 4px 12px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; }
-        .applied { background: #eef5ff; color: #5d9cec; }
-        .interview { background: #f5f3ff; color: #a29bfe; }
-        .hired { background: #ebfbf2; color: #2ecc71; }
-        .rejected { background: #fff1f0; color: #e74c3c; }
+        
+        .status-pill { padding: 4px 12px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; }
+        .status-pill.applied, .status-pill.pending { background: #eef5ff; color: #5d9cec; }
+        .status-pill.interview { background: #f5f3ff; color: #a29bfe; }
+        .status-pill.hired { background: #ebfbf2; color: #2ecc71; }
+        .status-pill.rejected { background: #fff1f0; color: #e74c3c; }
         
         .action-icon { background: none; border: none; cursor: pointer; margin-right: 8px; color: #94a3b8; transition: color 0.2s; }
         .action-icon:hover { color: #5d9cec; }
@@ -130,44 +117,61 @@ const Applicants = () => {
         <h2>Applicants</h2>
       </div>
 
-      {/* Sorting Sub-Tabs (Status Filter) */}
       <div className="sub-tabs">
-        {['All', 'Applied', 'Interview', 'Hired', 'Rejected'].map((tab) => (
-          <button 
-            key={tab}
-            className={`sub-tab-btn ${statusFilter === tab ? 'active' : ''}`}
-            onClick={() => updateStatus(tab)}
-          >
-            {tab} {tab !== 'All' && `(${allApplicants.filter(a => a.status === tab.toUpperCase()).length})`}
-          </button>
-        ))}
+        {['All', 'Applied', 'Interview', 'Hired', 'Rejected'].map((tab) => {
+          const count = applicants.filter(a => 
+            tab === 'All' ? true : a.status.toLowerCase() === tab.toLowerCase()
+          ).length;
+
+          return (
+            <button 
+              key={tab}
+              className={`sub-tab-btn ${statusFilter === tab ? 'active' : ''}`}
+              onClick={() => updateStatus(tab)}
+            >
+              {tab} {tab !== 'All' && `(${count})`}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Search and Dropdown Filter Bar */}
       <div className="table-controls">
-        <input type="text" placeholder="Search by name or applicant number..." className="search-input" />
+        <input 
+          type="text" 
+          placeholder="Search by name or ID..." 
+          className="search-input" 
+          value={searchQuery}
+          onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+        />
         
         <div className="select-wrapper">
-          <select className="filter-select" value={positionFilter} onChange={updatePosition}>
+          <select 
+            className="filter-select" 
+            value={positionFilter} 
+            onChange={(e) => { setPositionFilter(e.target.value); setCurrentPage(1); }}
+          >
             {positions.map(pos => <option key={pos} value={pos}>{pos}</option>)}
           </select>
           <ChevronDown className="select-icon" size={18} />
         </div>
 
         <div className="select-wrapper">
-          <select className="filter-select" value={branchFilter} onChange={updateBranch}>
+          <select 
+            className="filter-select" 
+            value={branchFilter} 
+            onChange={(e) => { setBranchFilter(e.target.value); setCurrentPage(1); }}
+          >
             {branches.map(branch => <option key={branch} value={branch}>{branch}</option>)}
           </select>
           <ChevronDown className="select-icon" size={18} />
         </div>
       </div>
 
-      {/* Applicants Table */}
       <div className="table-wrapper">
         <table className="applicants-table">
           <thead>
             <tr>
-              <th>Applicant Number</th>
+              <th>Applicant #</th>
               <th>Name</th>
               <th>Contact</th>
               <th>Applied Date</th>
@@ -178,7 +182,9 @@ const Applicants = () => {
             </tr>
           </thead>
           <tbody>
-            {currentItems.length > 0 ? (
+            {loading ? (
+              <tr><td colSpan="8" className="no-data">Loading applicants...</td></tr>
+            ) : currentItems.length > 0 ? (
               currentItems.map((app) => (
                 <tr key={app.id}>
                   <td className="bold">{app.id}</td>
@@ -196,23 +202,21 @@ const Applicants = () => {
                   <td>{app.position}</td>
                   <td>{app.branch}</td>
                   <td className="actions">
-                    <button className="action-icon"><Eye size={18} /></button>
-                    <button className="action-icon"><Download size={18} /></button>
+                    <button className="action-icon" title="View Details"><Eye size={18} /></button>
+                    <button className="action-icon" title="Download Resume"><Download size={18} /></button>
                   </td>
                 </tr>
               ))
             ) : (
-              <tr>
-                <td colSpan="8" className="no-data">No applicants found matching these filters.</td>
-              </tr>
+              <tr><td colSpan="8" className="no-data">No applicants found matching filters.</td></tr>
             )}
           </tbody>
         </table>
 
-        {/* Functional Pagination Section */}
+        {/* Pagination Footer */}
         <div className="pagination-container">
           <div className="pagination-info">
-            Showing {Math.min(indexOfLastItem, filteredData.length)} of {filteredData.length} entries
+            Showing {filteredData.length > 0 ? indexOfFirstItem + 1 : 0} - {Math.min(indexOfLastItem, filteredData.length)} of {filteredData.length} entries
           </div>
           <div className="pagination-controls">
             <button 

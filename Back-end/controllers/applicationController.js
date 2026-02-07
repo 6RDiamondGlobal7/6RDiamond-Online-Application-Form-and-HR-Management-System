@@ -39,10 +39,12 @@ exports.testDb = async (req, res) => {
     }
 };
 
-// 2. Get Open Jobs
+// 2. Get Jobs (FIXED: Fetches ALL jobs so frontend can decide what is Open/Closed)
 exports.getJobs = async (req, res) => {
     try {
-        const { data, error } = await supabase.from('jobpostings').select('*').eq('job_status', 'Open'); 
+        // REMOVED .eq('job_status', true) to prevent "missing data" issues
+        // We simply fetch all records. The frontend will filter active vs closed.
+        const { data, error } = await supabase.from('jobpostings').select('*');
         if (error) throw error;
         res.json(data);
     } catch (err) {
@@ -116,4 +118,41 @@ exports.submitApplication = async (req, res) => {
         console.error("Server Error:", err.message);
         res.status(500).json({ error: err.message });
     }
-};  
+};
+
+// 4. Get All Applicants
+exports.getApplicants = async (req, res) => {
+    try {
+        // Fetch from 'applicantfacttable' and join with 'applicant' and 'jobpostings'
+        const { data, error } = await supabase
+            .from('applicantfacttable')
+            .select(`
+                application_id,
+                date_applied,
+                status,
+                applicant:applicant_id ( first_name, last_name, email, contact_number ),
+                job:job_id ( job_title, branch )
+            `)
+            .order('date_applied', { ascending: false });
+
+        if (error) throw error;
+
+        // Format data to match what the Frontend React Table expects
+        const formattedData = data.map(app => ({
+            id: `APP${app.application_id}`, 
+            name: `${app.applicant?.first_name || ''} ${app.applicant?.last_name || ''}`,
+            email: app.applicant?.email || 'N/A',
+            phone: app.applicant?.contact_number || 'N/A',
+            date: new Date(app.date_applied).toLocaleDateString('en-US'), 
+            status: app.status || 'Pending',
+            position: app.job?.job_title || 'Unknown Role',
+            branch: app.job?.branch || 'Unknown Branch'
+        }));
+
+        res.json(formattedData);
+
+    } catch (err) {
+        console.error('Error fetching applicants:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+};

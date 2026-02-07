@@ -8,8 +8,7 @@ const IconArrowRight = () => ( <svg width="20" height="20" viewBox="0 0 24 24" f
 const IconArrowLeft = () => ( <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg> );
 const IconLoading = () => ( <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFB81C" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg> );
 
-// --- 1. THE MASTER LIST OF ROLES ---
-// We keep this so the UI always knows what to show, even if the DB is empty.
+// --- MASTER LIST OF ROLES ---
 const ROLES_DATA = [
   { id: 'corp-sec', title: 'Corporate Secretary', desc: 'Oversee brokerage division operations and manage corporate secretarial duties' },
   { id: 'licensed-broker', title: 'Licensed Customs Broker', desc: 'Handle customs clearance procedures and regulatory compliance' },
@@ -26,26 +25,39 @@ const SelectPosition = () => {
   const navigate = useNavigate();
   const { branch } = useParams();
   
-  const [availableJobTitles, setAvailableJobTitles] = useState([]); // Stores titles found in DB
+  const [availableJobTitles, setAvailableJobTitles] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [selectedRole, setSelectedRole] = useState(null);
 
   const displayBranch = branch ? branch.charAt(0).toUpperCase() + branch.slice(1) : 'Manila';
 
-  // --- 2. FETCH OPEN JOBS FROM DB ---
+  // --- HELPER: ROBUST STATUS CHECKER ---
+  const isJobActive = (status) => {
+    if (status === true) return true;
+    if (status === 'true') return true;
+    if (status === 'Open') return true;
+    if (status === 'Active') return true;
+    return false;
+  };
+
+  // --- FETCH JOBS ---
   useEffect(() => {
     const fetchJobs = async () => {
       try {
         const response = await axios.get('http://localhost:5000/api/jobs');
         
-        // Filter jobs that are for THIS branch
-        const branchJobs = response.data.filter(job => 
-            job.location?.toLowerCase().includes(branch.toLowerCase()) || 
-            job.branch?.toLowerCase().includes(branch.toLowerCase())
-        );
+        // Filter jobs based on Branch AND Status
+        const branchJobs = response.data.filter(job => {
+            // 1. Check Location Match
+            const matchesBranch = job.location?.toLowerCase().includes(branch.toLowerCase()) || 
+                                  job.branch?.toLowerCase().includes(branch.toLowerCase());
+            
+            // 2. Check Status Match
+            const isOpen = isJobActive(job.job_status);
 
-        // We only save the TITLES of the open jobs to compare later
-        // We normalize them (trim spaces) to avoid mismatches
+            return matchesBranch && isOpen;
+        });
+
         const titles = branchJobs.map(job => job.job_title.trim());
         setAvailableJobTitles(titles);
         
@@ -56,7 +68,9 @@ const SelectPosition = () => {
       }
     };
 
-    fetchJobs();
+    if (branch) {
+        fetchJobs();
+    }
   }, [branch]);
 
   const handleBack = () => {
@@ -95,11 +109,9 @@ const SelectPosition = () => {
            <div style={{textAlign: 'center', padding: '40px'}}><IconLoading /></div>
         ) : (
           <div className="sp-grid">
-            {/* --- 3. RENDER THE MASTER LIST --- */}
             {ROLES_DATA.map((role) => {
               
-              // CHECK: Is this role title in our DB list of "Open" jobs?
-              // (We use .find to check roughly if the string matches)
+              // Compare DB Titles with Role Titles
               const isAvailable = availableJobTitles.some(
                   dbTitle => dbTitle.toLowerCase() === role.title.toLowerCase()
               );
@@ -107,22 +119,21 @@ const SelectPosition = () => {
               return (
                 <div 
                   key={role.id} 
-                  // If not available, add 'disabled' class (You can style this to look blurred)
                   className={`sp-role-card ${!isAvailable ? 'disabled' : ''} ${selectedRole === role.id ? 'selected' : ''}`}
                   onClick={() => handleRoleClick(role.id, isAvailable)}
                   style={{ 
-                    // Visual Logic
                     border: selectedRole === role.id ? '2px solid #FFB81C' : '1px solid #e2e8f0',
-                    backgroundColor: selectedRole === role.id ? '#FFFBEB' : (isAvailable ? 'white' : '#F1F5F9'),
-                    opacity: isAvailable ? 1 : 0.6, // Blur effect
-                    cursor: isAvailable ? 'pointer' : 'not-allowed'
+                    backgroundColor: selectedRole === role.id ? '#FFFBEB' : (isAvailable ? 'white' : '#F8FAFC'), 
+                    opacity: isAvailable ? 1 : 0.6, 
+                    cursor: isAvailable ? 'pointer' : 'not-allowed',
+                    filter: isAvailable ? 'none' : 'grayscale(100%)'
                   }}
                 >
                   <div className="sp-card-header">
-                    <h3 className="sp-role-title">{role.title}</h3>
-                    {!isAvailable && <span className="sp-badge-closed" style={{fontSize: '10px', background:'#94a3b8', color:'white', padding:'2px 6px', borderRadius:'4px'}}>Closed</span>}
+                    <h3 className="sp-role-title" style={{ color: isAvailable ? '#1e293b' : '#94a3b8' }}>{role.title}</h3>
+                    {!isAvailable && <span className="sp-badge-closed" style={{fontSize: '10px', background:'#cbd5e1', color:'#475569', padding:'2px 8px', borderRadius:'4px', fontWeight:'bold', letterSpacing:'0.5px'}}>CLOSED</span>}
                   </div>
-                  <p className="sp-role-desc">{role.desc}</p>
+                  <p className="sp-role-desc" style={{ color: isAvailable ? '#64748b' : '#a0aec0' }}>{role.desc}</p>
                 </div>
               );
             })}
