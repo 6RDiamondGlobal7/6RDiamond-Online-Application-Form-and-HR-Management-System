@@ -27,4 +27,9 @@ router.get('/applicants', applicationController.getApplicants);
 // POST /api/apply (Uses Multer middleware + Controller logic)
 router.post('/apply', uploadFields, applicationController.submitApplication);
 
+console.log("LOGIN FUNCTION IS:", applicationController.loginEmployee);
+
+// POST /api/login
+router.post('/login', upload.none(), applicationController.loginEmployee);
+
 module.exports = router;

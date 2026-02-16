@@ -39,11 +39,9 @@ exports.testDb = async (req, res) => {
     }
 };
 
-// 2. Get Jobs (FIXED: Fetches ALL jobs so frontend can decide what is Open/Closed)
+// 2. Get Jobs
 exports.getJobs = async (req, res) => {
     try {
-        // REMOVED .eq('job_status', true) to prevent "missing data" issues
-        // We simply fetch all records. The frontend will filter active vs closed.
         const { data, error } = await supabase.from('jobpostings').select('*');
         if (error) throw error;
         res.json(data);
@@ -123,7 +121,6 @@ exports.submitApplication = async (req, res) => {
 // 4. Get All Applicants
 exports.getApplicants = async (req, res) => {
     try {
-        // Fetch from 'applicantfacttable' and join with 'applicant' and 'jobpostings'
         const { data, error } = await supabase
             .from('applicantfacttable')
             .select(`
@@ -137,7 +134,6 @@ exports.getApplicants = async (req, res) => {
 
         if (error) throw error;
 
-        // Format data to match what the Frontend React Table expects
         const formattedData = data.map(app => ({
             id: `APP${app.application_id}`, 
             name: `${app.applicant?.first_name || ''} ${app.applicant?.last_name || ''}`,
@@ -154,5 +150,42 @@ exports.getApplicants = async (req, res) => {
     } catch (err) {
         console.error('Error fetching applicants:', err.message);
         res.status(500).json({ error: err.message });
+    }
+}; // <--- FIXED: Added this closing brace to end getApplicants
+
+// 5. Employee Login
+exports.loginEmployee = async (req, res) => {
+    const { employeeId, password } = req.body;
+
+    try {
+        // 1. Check if user exists in Supabase
+        const { data, error } = await supabase
+            .from('employees')
+            .select('*')
+            .eq('employee_id', employeeId)
+            .single();
+
+        if (error || !data) {
+            return res.status(401).json({ error: 'Invalid Employee ID or Password' });
+        }
+
+        // 2. Simple Password Check 
+        if (data.password !== password) {
+            return res.status(401).json({ error: 'Invalid Employee ID or Password' });
+        }
+
+        // 3. Login Successful
+        res.json({ 
+            message: "Login successful", 
+            user: { 
+                id: data.employee_id, 
+                name: `${data.first_name} ${data.last_name}`,
+                role: data.role 
+            } 
+        });
+
+    } catch (err) {
+        console.error("Login Error:", err.message);
+        res.status(500).json({ error: "Internal Server Error" });
     }
 };
