@@ -57,11 +57,10 @@ exports.submitApplication = async (req, res) => {
     const files = req.files || {};
     console.log("Received Files:", Object.keys(files));
 
-    const { 
-        firstName, lastName, middleInitial, suffix, 
-        nationality, birthday, age, email, contactNumber, 
-        region, province, city, barangay, detailedAddress,
-        medicalCondition, medicalDetails 
+    const {
+        firstName, lastName, middleInitial, suffix,
+        nationality, birthday, age, email, contactNumber,
+        region, province, city, barangay, detailedAddress
     } = req.body;
 
     try {
@@ -97,8 +96,6 @@ exports.submitApplication = async (req, res) => {
                 city_municipality: city,
                 barangay: barangay,
                 detailed_address: detailedAddress,
-                medical_condition: medicalCondition,
-                medical_details: medicalDetails,
                 resume_url: resumeUrl,
                 cover_letter_url: coverLetterUrl,
                 prc_id_url: prcIdUrl
@@ -122,27 +119,27 @@ exports.submitApplication = async (req, res) => {
 exports.getApplicants = async (req, res) => {
     try {
         const { data, error } = await supabase
-            .from('applicantfacttable')
+            .from('applicant')
             .select(`
-                application_id,
-                date_applied,
-                status,
-                applicant:applicant_id ( first_name, last_name, email, contact_number ),
-                job:job_id ( job_title, branch )
+                applicant_no,
+                first_name,
+                last_name,
+                email,
+                contact_number
             `)
-            .order('date_applied', { ascending: false });
+            .order('applicant_no', { ascending: false });
 
         if (error) throw error;
 
         const formattedData = data.map(app => ({
-            id: `APP${app.application_id}`, 
-            name: `${app.applicant?.first_name || ''} ${app.applicant?.last_name || ''}`,
-            email: app.applicant?.email || 'N/A',
-            phone: app.applicant?.contact_number || 'N/A',
-            date: new Date(app.date_applied).toLocaleDateString('en-US'), 
-            status: app.status || 'Pending',
-            position: app.job?.job_title || 'Unknown Role',
-            branch: app.job?.branch || 'Unknown Branch'
+            id: app.applicant_no || 'N/A',
+            name: `${app.first_name || ''} ${app.last_name || ''}`.trim(),
+            email: app.email || 'N/A',
+            phone: app.contact_number || 'N/A',
+            date: 'N/A',
+            status: 'Applied',
+            position: 'Not assigned',
+            branch: 'Not assigned'
         }));
 
         res.json(formattedData);
