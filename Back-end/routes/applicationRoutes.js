@@ -21,13 +21,15 @@ router.get('/test-db', applicationController.testDb);
 // GET /api/jobs
 router.get('/jobs', applicationController.getJobs);
 
-// GET /api/applicants (NEW ROUTE ADDED HERE)
+// GET /api/applicants
 router.get('/applicants', applicationController.getApplicants);
+
+// PUT /api/applicants/:id/status (NEW ROUTE ADDED HERE)
+// This listens for status updates (Approve/Reject) from the HR Dashboard
+router.put('/applicants/:id/status', applicationController.updateApplicantStatus);
 
 // POST /api/apply (Uses Multer middleware + Controller logic)
 router.post('/apply', uploadFields, applicationController.submitApplication);
-
-console.log("LOGIN FUNCTION IS:", applicationController.loginEmployee);
 
 // POST /api/login
 router.post('/login', upload.none(), applicationController.loginEmployee);

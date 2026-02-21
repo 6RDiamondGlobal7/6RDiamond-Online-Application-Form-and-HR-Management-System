@@ -3,7 +3,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import './ApplicationForm.css';
 
-// --- ICONS (Same as before) ---
+// --- ICONS ---
 const IconFileBlue = () => ( <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4A90E2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg> );
 const IconCheckCircle = () => ( <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> );
 const IconCheckCircleBlue = () => ( <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#4A90E2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> );
@@ -46,7 +46,7 @@ const ApplicationReview = () => {
     navigate(`/apply/${branch}/${roleId}/form`);
   };
 
-  // --- NEW SUBMIT FUNCTION WITH FILES ---
+  // --- SUBMIT FUNCTION WITH FILES ---
   const handleConfirmAction = async () => {
     if (!signature.trim()) {
       setShowConfirm(false);
@@ -74,9 +74,17 @@ const ApplicationReview = () => {
     dataToSend.append('city', formData.city || '');
     dataToSend.append('barangay', formData.barangay || '');
     dataToSend.append('detailedAddress', formData.detailedAddress || '');
+    
+    // --- MEDICAL FIELDS ---
+    dataToSend.append('medicalCondition', formData.medicalCondition || 'no');
+    dataToSend.append('medicalDetails', formData.medicalDetails || '');
+    
+    // --- APPLIED YOUR SPECIFIC CODE SNIPPET HERE ---
+    dataToSend.append('branch', branch); 
+    dataToSend.append('positionApplied', roleId); 
+    // ----------------------------------------------
 
     // 3. Append Files (Only if they exist)
-    // IMPORTANT: 'resume' here matches upload.fields([{ name: 'resume' }]) in server.js
     if (formData.resume) {
         dataToSend.append('resume', formData.resume);
     }
@@ -194,7 +202,6 @@ const ApplicationReview = () => {
         </div>
       )}
 
-       {/* Sample Modal code omitted for brevity but you can keep it if you want */}
        {showSample && <div className="af-modal-overlay"><button onClick={() => setShowSample(false)}>Close</button></div>}
     </div>
   );
