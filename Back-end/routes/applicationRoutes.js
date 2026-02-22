@@ -24,6 +24,9 @@ router.get('/jobs', applicationController.getJobs);
 // GET /api/applicants
 router.get('/applicants', applicationController.getApplicants);
 
+// GET /api/reports
+router.get('/reports', applicationController.getReports);
+
 // PUT /api/applicants/:id/status (NEW ROUTE ADDED HERE)
 // This listens for status updates (Approve/Reject) from the HR Dashboard
 router.put('/applicants/:id/status', applicationController.updateApplicantStatus);

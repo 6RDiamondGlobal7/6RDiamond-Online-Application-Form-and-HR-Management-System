@@ -62,7 +62,7 @@
 
 /* FIX: Forces blue tab with white text */
 .tab-btn.active {
-  background: #4A90E2 !important; 
+  background: #4A90E2 !important;
   color: #ffffff !important;
   font-weight: 600;
 }
@@ -182,10 +182,25 @@
   color: #0284c7;
 }
 
+.status-pill.interview {
+  background: #ede9fe;
+  color: #7c3aed;
+}
+
+.status-pill.hired {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.status-pill.rejected {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
 /* --- TABLE ACTIONS --- */
-.actions-wrapper { 
-  display: flex; 
-  gap: 12px; 
+.actions-wrapper {
+  display: flex;
+  gap: 12px;
   align-items: center;
 }
 
@@ -193,7 +208,7 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  color: #64748b; 
+  color: #64748b;
   padding: 4px;
   display: flex;
   align-items: center;
@@ -202,7 +217,11 @@
 }
 
 .action-icon:hover {
-  color: #0f172a; 
+  color: #0f172a;
+}
+
+.action-icon.disabled {
+  opacity: 0.45;
 }
 
 /* --- PAGINATION --- */
@@ -236,9 +255,20 @@
   border-radius: 4px;
 }
 
+.page-nav-text:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .page-number.active {
   background: #4A90E2;
   color: white;
+}
+
+.no-data {
+  text-align: center;
+  color: #718096;
+  padding: 30px 10px;
 }
 
 /* --- MODAL (PROTOTYPE DESIGN) --- */

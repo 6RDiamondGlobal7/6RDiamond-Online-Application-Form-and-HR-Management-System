@@ -26,6 +26,81 @@ const uploadFileToSupabase = async (fileObject) => {
     return publicUrlData.publicUrl;
 };
 
+const formatDate = (value) => {
+    if (!value) return 'N/A';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'N/A';
+    return date.toISOString().slice(0, 10);
+};
+
+const normalizeStatus = (status) => {
+    const clean = String(status || '').trim().toLowerCase();
+    if (clean === 'hired') return 'Hired';
+    if (clean === 'rejected') return 'Rejected';
+    if (clean === 'interview') return 'Interview';
+    return 'Applied';
+};
+
+const percentage = (part, total) => {
+    if (!total) return 0;
+    return Number(((part / total) * 100).toFixed(1));
+};
+
+const toIntegerInRange = (value, min, max, fallback) => {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isNaN(parsed) || parsed < min || parsed > max) return fallback;
+    return parsed;
+};
+
+const getPeriodConfig = ({ reportType, month, quarter, year }) => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const safeYear = toIntegerInRange(year, 2000, 2100, currentYear);
+    const normalizedType = String(reportType || 'monthly').toLowerCase();
+    const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+
+    if (normalizedType === 'annual') {
+        const start = `${safeYear}-01-01`;
+        const end = `${safeYear + 1}-01-01`;
+        return {
+            reportType: 'annual',
+            startDate: start,
+            endDate: end,
+            label: `${safeYear} Annual Report`,
+            filter: { year: safeYear }
+        };
+    }
+
+    if (normalizedType === 'quarterly') {
+        const safeQuarter = toIntegerInRange(quarter, 1, 4, Math.floor(now.getMonth() / 3) + 1);
+        const startMonth = (safeQuarter - 1) * 3;
+        const endMonth = startMonth + 3;
+        const start = new Date(Date.UTC(safeYear, startMonth, 1)).toISOString().slice(0, 10);
+        const end = new Date(Date.UTC(safeYear, endMonth, 1)).toISOString().slice(0, 10);
+        return {
+            reportType: 'quarterly',
+            startDate: start,
+            endDate: end,
+            label: `Q${safeQuarter} ${safeYear} Report`,
+            filter: { year: safeYear, quarter: safeQuarter }
+        };
+    }
+
+    const safeMonth = toIntegerInRange(month, 1, 12, now.getMonth() + 1);
+    const start = new Date(Date.UTC(safeYear, safeMonth - 1, 1)).toISOString().slice(0, 10);
+    const end = new Date(Date.UTC(safeYear, safeMonth, 1)).toISOString().slice(0, 10);
+    return {
+        reportType: 'monthly',
+        startDate: start,
+        endDate: end,
+        label: `${monthNames[safeMonth - 1]} ${safeYear} Report`,
+        filter: { year: safeYear, month: safeMonth }
+    };
+};
+
 // --- Controller Functions ---
 
 // 1. Test Database Connection
@@ -163,7 +238,99 @@ exports.getApplicants = async (req, res) => {
     }
 };
 
-// 5. Update Applicant Status
+// 5. Reports
+exports.getReports = async (req, res) => {
+    try {
+        const period = getPeriodConfig(req.query || {});
+        const { data, error } = await supabase
+            .from('applicant')
+            .select('*')
+            .order('applicant_no', { ascending: false });
+
+        if (error) throw error;
+
+        const startMs = new Date(`${period.startDate}T00:00:00.000Z`).getTime();
+        const endMs = new Date(`${period.endDate}T00:00:00.000Z`).getTime();
+
+        const inferDate = (app) => {
+            if (app.created_at || app.createdAt) return app.created_at || app.createdAt;
+            if (app.applied_date || app.appliedDate) return app.applied_date || app.appliedDate;
+            if (app.date_created || app.dateCreated) return app.date_created || app.dateCreated;
+            if (app.created_on || app.createdOn) return app.created_on || app.createdOn;
+
+            const match = String(app.applicant_no || '').match(/APP-(\d{10,13})/i);
+            if (!match) return null;
+            const ts = Number(match[1]);
+            if (Number.isNaN(ts)) return null;
+            return new Date(ts).toISOString();
+        };
+
+        const records = (data || [])
+            .map((app) => {
+                const appliedRaw = inferDate(app);
+                const appliedMs = appliedRaw ? new Date(appliedRaw).getTime() : Number.NaN;
+                return {
+                    id: app.applicant_no || 'N/A',
+                    name: `${app.first_name || ''} ${app.last_name || ''}`.trim() || 'N/A',
+                    email: app.email || 'N/A',
+                    phone: app.contact_number || 'N/A',
+                    status: normalizeStatus(app.status || 'Applied'),
+                    position: app.position_applied || 'Not assigned',
+                    branch: app.branch || 'Not assigned',
+                    dateRaw: appliedRaw,
+                    appliedMs
+                };
+            })
+            .filter((row) => !Number.isNaN(row.appliedMs) && row.appliedMs >= startMs && row.appliedMs < endMs)
+            .map((row) => ({
+                id: row.id,
+                name: row.name,
+                email: row.email,
+                phone: row.phone,
+                status: row.status,
+                position: row.position,
+                branch: row.branch,
+                date: formatDate(row.dateRaw)
+            }));
+
+        const total = records.length;
+        const statusBreakdown = records.reduce((acc, item) => {
+            acc[item.status] = (acc[item.status] || 0) + 1;
+            return acc;
+        }, { Applied: 0, Interview: 0, Hired: 0, Rejected: 0 });
+
+        const summary = {
+            totalApplications: total,
+            newApplications: statusBreakdown.Applied,
+            interviewCount: statusBreakdown.Interview,
+            hiredCount: statusBreakdown.Hired,
+            rejectedCount: statusBreakdown.Rejected,
+            interviewRate: percentage(statusBreakdown.Interview, total),
+            hiringRate: percentage(statusBreakdown.Hired, total),
+            rejectionRate: percentage(statusBreakdown.Rejected, total)
+        };
+
+        res.json({
+            meta: {
+                reportType: period.reportType,
+                label: period.label,
+                dateRange: {
+                    from: period.startDate,
+                    to: period.endDate
+                },
+                filter: period.filter
+            },
+            summary,
+            statusBreakdown,
+            records
+        });
+    } catch (err) {
+        console.error('Error generating report:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+};
+
+// 6. Update Applicant Status
 exports.updateApplicantStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
@@ -183,7 +350,7 @@ exports.updateApplicantStatus = async (req, res) => {
     }
 };
 
-// 6. Employee Login
+// 7. Employee Login
 exports.loginEmployee = async (req, res) => {
     const { employeeId, password } = req.body;
 

@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios'; 
-import { 
-  ChevronLeft, ChevronRight, Eye, Download, ChevronDown, 
-  Search, Mail, Phone, FileText, CheckCircle, X, XCircle 
+import axios from 'axios';
+import {
+  ChevronLeft, ChevronRight, Eye, Download, ChevronDown,
+  Search, Mail, Phone, FileText, X, XCircle
 } from 'lucide-react';
 import './Applicants.css';
+import { getApiBaseUrl } from '../config/api';
 
 const Applicants = () => {
+  const API_BASE_URL = getApiBaseUrl();
   const [applicants, setApplicants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedApplicant, setSelectedApplicant] = useState(null);
@@ -15,8 +17,8 @@ const Applicants = () => {
   const [statusFilter, setStatusFilter] = useState('All');
   const [positionFilter, setPositionFilter] = useState('All Positions');
   const [branchFilter, setBranchFilter] = useState('All Branches');
-  const [searchQuery, setSearchQuery] = useState(''); 
-  
+  const [searchQuery, setSearchQuery] = useState('');
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
@@ -34,7 +36,7 @@ const Applicants = () => {
       'import-export-head': 'Import & Export Head',
       'admin-staff': 'Administration Staff'
     };
-    return roles[id] || id.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    return roles[id] || id.split('-').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   };
 
   const formatBranch = (text) => {
@@ -46,10 +48,10 @@ const Applicants = () => {
   const fetchApplicants = async () => {
     setLoading(true);
     try {
-      const response = await axios.get('http://localhost:5000/api/applicants');
-      
+      const response = await axios.get(`${API_BASE_URL}/api/applicants`);
+
       // Format the branch and position immediately upon receiving the data
-      const formattedData = response.data.map(app => ({
+      const formattedData = response.data.map((app) => ({
         ...app,
         branch: formatBranch(app.branch),
         position: formatPosition(app.position)
@@ -63,18 +65,19 @@ const Applicants = () => {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchApplicants();
-  }, []);
+  }, [API_BASE_URL]);
 
   // --- HANDLE STATUS UPDATE ---
   const handleUpdateStatus = async (id, newStatus) => {
     if (!window.confirm(`Are you sure you want to mark this applicant as ${newStatus}?`)) return;
-    
+
     try {
-      await axios.put(`http://localhost:5000/api/applicants/${id}/status`, { status: newStatus });
-      setApplicants(prev => prev.map(app => 
+      await axios.put(`${API_BASE_URL}/api/applicants/${id}/status`, { status: newStatus });
+      setApplicants((prev) => prev.map((app) => (
         app.id === id ? { ...app, status: newStatus } : app
-      ));
+      )));
       setSelectedApplicant(null);
     } catch (error) {
       console.error('Error updating status:', error);
@@ -83,17 +86,18 @@ const Applicants = () => {
   };
 
   // --- FILTERS & PAGINATION ---
-  const positions = ['All Positions', ...new Set(applicants.map(item => item.position))];
-  const branches = ['All Branches', ...new Set(applicants.map(item => item.branch))];
+  const positions = ['All Positions', ...new Set(applicants.map((item) => item.position))];
+  const branches = ['All Branches', ...new Set(applicants.map((item) => item.branch))];
 
-  const filteredData = applicants.filter(app => {
-    const matchesStatus = statusFilter === 'All' || app.status.toLowerCase() === statusFilter.toLowerCase();
+  const filteredData = applicants.filter((app) => {
+    const appStatus = (app.status || '').toLowerCase();
+    const appName = (app.name || '').toLowerCase();
+    const appId = (app.id || '').toLowerCase();
+    const matchesStatus = statusFilter === 'All' || appStatus === statusFilter.toLowerCase();
     const matchesPosition = positionFilter === 'All Positions' || app.position === positionFilter;
     const matchesBranch = branchFilter === 'All Branches' || app.branch === branchFilter;
-    const matchesSearch = 
-        app.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        app.id.toLowerCase().includes(searchQuery.toLowerCase());
-    
+    const matchesSearch = appName.includes(searchQuery.toLowerCase()) || appId.includes(searchQuery.toLowerCase());
+
     return matchesStatus && matchesPosition && matchesBranch && matchesSearch;
   });
 
@@ -101,6 +105,14 @@ const Applicants = () => {
   const currentItems = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const updateStatus = (val) => { setStatusFilter(val); setCurrentPage(1); };
+
+  const handleDownloadResume = (app) => {
+    if (!app?.resume_url) {
+      alert('No resume uploaded for this applicant.');
+      return;
+    }
+    window.open(app.resume_url, '_blank', 'noopener,noreferrer');
+  };
 
   return (
     <div className="applicants-container">
@@ -113,13 +125,13 @@ const Applicants = () => {
       {/* TOP NAVIGATION TABS */}
       <div className="top-tabs-card">
         {['All', 'Applied', 'Interview', 'Hired', 'Rejected'].map((tab, index, array) => {
-          const count = applicants.filter(a => 
-            tab === 'All' ? true : a.status.toLowerCase() === tab.toLowerCase()
-          ).length;
+          const count = applicants.filter((a) => (
+            tab === 'All' ? true : (a.status || '').toLowerCase() === tab.toLowerCase()
+          )).length;
 
           return (
             <React.Fragment key={tab}>
-              <button 
+              <button
                 className={`tab-btn ${statusFilter === tab ? 'active' : ''}`}
                 onClick={() => updateStatus(tab)}
               >
@@ -135,19 +147,19 @@ const Applicants = () => {
       <div className="filters-card">
         <div className="search-wrapper">
           <Search className="search-icon" size={18} />
-          <input 
-            type="text" 
-            placeholder="Search by name or ID..." 
-            className="search-input" 
+          <input
+            type="text"
+            placeholder="Search by name or ID..."
+            className="search-input"
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
           />
         </div>
-        
+
         <div className="select-wrapper">
           <FileText className="select-left-icon" size={18} />
           <select className="filter-select" value={positionFilter} onChange={(e) => { setPositionFilter(e.target.value); setCurrentPage(1); }}>
-            {positions.map(pos => <option key={pos} value={pos}>{pos}</option>)}
+            {positions.map((pos) => <option key={pos} value={pos}>{pos}</option>)}
           </select>
           <ChevronDown className="select-right-icon" size={18} />
         </div>
@@ -155,7 +167,7 @@ const Applicants = () => {
         <div className="select-wrapper">
           <Search className="select-left-icon" size={18} />
           <select className="filter-select" value={branchFilter} onChange={(e) => { setBranchFilter(e.target.value); setCurrentPage(1); }}>
-            {branches.map(branch => <option key={branch} value={branch}>{branch}</option>)}
+            {branches.map((branch) => <option key={branch} value={branch}>{branch}</option>)}
           </select>
           <ChevronDown className="select-right-icon" size={18} />
         </div>
@@ -194,7 +206,7 @@ const Applicants = () => {
                     </div>
                   </td>
                   <td>
-                    <span className={`status-pill ${app.status.toLowerCase()}`}>
+                    <span className={`status-pill ${(app.status || '').toLowerCase()}`}>
                       {app.status}
                     </span>
                   </td>
@@ -205,11 +217,13 @@ const Applicants = () => {
                       <button className="action-icon" title="View Details" onClick={() => setSelectedApplicant(app)}>
                         <Eye size={18} />
                       </button>
-                      {app.resume_url && (
-                        <a href={app.resume_url} target="_blank" rel="noreferrer" className="action-icon" title="Download Resume">
-                          <Download size={18} />
-                        </a>
-                      )}
+                      <button
+                        className={`action-icon ${!app.resume_url ? 'disabled' : ''}`}
+                        title={app.resume_url ? 'Download Resume' : 'No Resume Uploaded'}
+                        onClick={() => handleDownloadResume(app)}
+                      >
+                        <Download size={18} />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -226,28 +240,30 @@ const Applicants = () => {
             Showing {currentItems.length > 0 ? ((currentPage - 1) * itemsPerPage) + 1 : 0} to {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} entries
           </div>
           <div className="pagination-controls">
-            <button 
-              className="page-nav-text" 
-              onClick={() => setCurrentPage(prev => prev - 1)} 
+            <button
+              className="page-nav-text"
+              onClick={() => setCurrentPage((prev) => prev - 1)}
               disabled={currentPage === 1}
             >
+              <ChevronLeft size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
               Previous
             </button>
             {[...Array(totalPages)].map((_, index) => (
-              <button 
-                key={index + 1} 
-                className={`page-number ${currentPage === index + 1 ? 'active' : ''}`} 
+              <button
+                key={index + 1}
+                className={`page-number ${currentPage === index + 1 ? 'active' : ''}`}
                 onClick={() => setCurrentPage(index + 1)}
               >
                 {index + 1}
               </button>
             ))}
-            <button 
-              className="page-nav-text" 
-              onClick={() => setCurrentPage(prev => prev + 1)} 
+            <button
+              className="page-nav-text"
+              onClick={() => setCurrentPage((prev) => prev + 1)}
               disabled={currentPage === totalPages || totalPages === 0}
             >
               Next
+              <ChevronRight size={14} style={{ verticalAlign: 'middle', marginLeft: 4 }} />
             </button>
           </div>
         </div>
@@ -257,7 +273,6 @@ const Applicants = () => {
       {selectedApplicant && (
         <div className="app-modal-overlay" onClick={() => setSelectedApplicant(null)}>
           <div className="app-modal-content" onClick={(e) => e.stopPropagation()}>
-            
             <div className="app-modal-header">
               <div className="app-modal-title-area">
                 <h3>Applicant Details</h3>
@@ -269,7 +284,7 @@ const Applicants = () => {
                 <X size={20} />
               </button>
             </div>
-            
+
             <div className="app-modal-body">
               {/* PERSONAL INFO */}
               <section>
@@ -320,15 +335,15 @@ const Applicants = () => {
                         <button className="app-btn-doc" onClick={() => window.open(selectedApplicant.resume_url, '_blank')}>
                           <Eye size={16} /> View
                         </button>
-                        <a href={selectedApplicant.resume_url} target="_blank" rel="noreferrer" style={{textDecoration: 'none'}}>
+                        <a href={selectedApplicant.resume_url} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
                           <button className="app-btn-doc">
                             <Download size={16} /> Download
                           </button>
                         </a>
                       </div>
                     </div>
-                  ) : <p className="no-data" style={{fontSize: '0.85rem', color: '#718096', paddingLeft: '10px'}}>No Resume Uploaded</p>}
-                  
+                  ) : <p className="no-data" style={{ fontSize: '0.85rem', color: '#718096', paddingLeft: '10px' }}>No Resume Uploaded</p>}
+
                   {selectedApplicant.cover_letter_url ? (
                     <div className="app-doc-card">
                       <div className="app-doc-info">
@@ -342,14 +357,14 @@ const Applicants = () => {
                         <button className="app-btn-doc" onClick={() => window.open(selectedApplicant.cover_letter_url, '_blank')}>
                           <Eye size={16} /> View
                         </button>
-                        <a href={selectedApplicant.cover_letter_url} target="_blank" rel="noreferrer" style={{textDecoration: 'none'}}>
+                        <a href={selectedApplicant.cover_letter_url} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
                           <button className="app-btn-doc">
                             <Download size={16} /> Download
                           </button>
                         </a>
                       </div>
                     </div>
-                  ) : <p className="no-data" style={{fontSize: '0.85rem', color: '#718096', paddingLeft: '10px'}}>No Cover Letter Uploaded</p>}
+                  ) : <p className="no-data" style={{ fontSize: '0.85rem', color: '#718096', paddingLeft: '10px' }}>No Cover Letter Uploaded</p>}
                 </div>
               </section>
 
@@ -363,8 +378,8 @@ const Applicants = () => {
                   <div className="app-info-item">
                     <span className="app-info-label">Has Pre-existing Medical Conditions?</span>
                     <span className="app-info-value">
-                      {selectedApplicant.medicalCondition 
-                        ? selectedApplicant.medicalCondition.charAt(0).toUpperCase() + selectedApplicant.medicalCondition.slice(1).toLowerCase() 
+                      {selectedApplicant.medicalCondition
+                        ? selectedApplicant.medicalCondition.charAt(0).toUpperCase() + selectedApplicant.medicalCondition.slice(1).toLowerCase()
                         : 'No'}
                     </span>
                   </div>
@@ -379,21 +394,21 @@ const Applicants = () => {
             </div>
 
             {/* ACTION BUTTONS */}
-            {selectedApplicant.status.toLowerCase() === 'applied' && (
+            {(selectedApplicant.status || '').toLowerCase() === 'applied' && (
               <div className="app-modal-footer" style={{ display: 'flex', gap: '15px', padding: '0 24px 24px 24px' }}>
-                <button 
-                  className="app-btn-approve" 
-                  style={{ flex: 1, padding: '14px', fontSize: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center' }} 
+                <button
+                  className="app-btn-approve"
+                  style={{ flex: 1, padding: '14px', fontSize: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
                   onClick={() => handleUpdateStatus(selectedApplicant.id, 'Interview')}
                 >
-                   Approve for Interview
+                  Approve for Interview
                 </button>
-                <button 
-                  className="app-btn-reject" 
-                  style={{ flex: 1, padding: '14px', fontSize: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }} 
+                <button
+                  className="app-btn-reject"
+                  style={{ flex: 1, padding: '14px', fontSize: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
                   onClick={() => handleUpdateStatus(selectedApplicant.id, 'Rejected')}
                 >
-                   <XCircle size={18} strokeWidth={2.5} /> Reject Application
+                  <XCircle size={18} strokeWidth={2.5} /> Reject Application
                 </button>
               </div>
             )}
