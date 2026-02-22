@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios'; 
 import { 
   ChevronLeft, ChevronRight, Eye, Download, ChevronDown, 
-  Search, Mail, Phone, FileText, CheckCircle, X
+  Search, Mail, Phone, FileText, CheckCircle, X, XCircle 
 } from 'lucide-react';
 import './Applicants.css';
 
@@ -21,12 +21,41 @@ const Applicants = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
+  // --- FORMATTING HELPERS ---
+  const formatPosition = (id) => {
+    if (!id || id === 'Not assigned' || id === 'Not specified') return id;
+    const roles = {
+      'corp-sec': 'Corporate Secretary',
+      'licensed-broker': 'Licensed Customs Broker',
+      'office-manager': 'Office Manager',
+      'messenger': 'Messenger / Logistics',
+      'secretary': 'Secretary to the Office Manager',
+      'brokerage-specialist': 'Brokerage Specialist',
+      'import-export-head': 'Import & Export Head',
+      'admin-staff': 'Administration Staff'
+    };
+    return roles[id] || id.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  };
+
+  const formatBranch = (text) => {
+    if (!text || text === 'Not assigned' || text === 'Not specified') return text;
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  };
+
   // --- FETCH DATA ---
   const fetchApplicants = async () => {
     setLoading(true);
     try {
       const response = await axios.get('http://localhost:5000/api/applicants');
-      setApplicants(response.data);
+      
+      // Format the branch and position immediately upon receiving the data
+      const formattedData = response.data.map(app => ({
+        ...app,
+        branch: formatBranch(app.branch),
+        position: formatPosition(app.position)
+      }));
+
+      setApplicants(formattedData);
     } catch (error) {
       console.error('Error fetching applicants:', error);
     }
@@ -171,15 +200,17 @@ const Applicants = () => {
                   </td>
                   <td>{app.position}</td>
                   <td>{app.branch}</td>
-                  <td className="actions">
-                    <button className="action-icon" title="View Details" onClick={() => setSelectedApplicant(app)}>
-                      <Eye size={18} />
-                    </button>
-                    {app.resume_url && (
-                      <a href={app.resume_url} target="_blank" rel="noreferrer" className="action-icon" title="Download Resume">
-                        <Download size={18} />
-                      </a>
-                    )}
+                  <td>
+                    <div className="actions-wrapper">
+                      <button className="action-icon" title="View Details" onClick={() => setSelectedApplicant(app)}>
+                        <Eye size={18} />
+                      </button>
+                      {app.resume_url && (
+                        <a href={app.resume_url} target="_blank" rel="noreferrer" className="action-icon" title="Download Resume">
+                          <Download size={18} />
+                        </a>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))
@@ -222,17 +253,20 @@ const Applicants = () => {
         </div>
       </div>
 
-      {/* MODAL */}
+      {/* MODAL (PROTOTYPE DESIGN) */}
       {selectedApplicant && (
         <div className="app-modal-overlay" onClick={() => setSelectedApplicant(null)}>
           <div className="app-modal-content" onClick={(e) => e.stopPropagation()}>
+            
             <div className="app-modal-header">
               <div className="app-modal-title-area">
-                <h3>Applicant Profile</h3>
-                <p className="app-modal-subtitle">ID: {selectedApplicant.id} | Status: {selectedApplicant.status}</p>
+                <h3>Applicant Details</h3>
+                <p className="app-modal-subtitle">
+                  {selectedApplicant.name} - Applicant Number: {selectedApplicant.id}
+                </p>
               </div>
               <button className="app-modal-close-btn" onClick={() => setSelectedApplicant(null)}>
-                <X size={24} />
+                <X size={20} />
               </button>
             </div>
             
@@ -240,7 +274,7 @@ const Applicants = () => {
               {/* PERSONAL INFO */}
               <section>
                 <div className="app-section-header">
-                  <CheckCircle size={18} />
+                  <FileText className="app-section-icon" size={20} />
                   <span className="app-section-title">Personal Information</span>
                 </div>
                 <div className="app-info-grid">
@@ -255,14 +289,8 @@ const Applicants = () => {
                   <div className="app-info-item"><span className="app-info-label">Branch</span><span className="app-info-value">{selectedApplicant.branch || 'N/A'}</span></div>
                   <div className="app-info-item"><span className="app-info-label">Position Applied</span><span className="app-info-value">{selectedApplicant.position || 'N/A'}</span></div>
                 </div>
-              </section>
 
-              {/* ADDRESS */}
-              <section>
-                <div className="app-section-header">
-                  <Search size={18} />
-                  <span className="app-section-title">Address</span>
-                </div>
+                <div className="app-address-title">Address</div>
                 <div className="app-address-grid">
                   <div className="app-info-item"><span className="app-info-label">Region</span><span className="app-info-value">{selectedApplicant.region || 'N/A'}</span></div>
                   <div className="app-info-item"><span className="app-info-label">Province</span><span className="app-info-value">{selectedApplicant.province || 'N/A'}</span></div>
@@ -275,21 +303,28 @@ const Applicants = () => {
               {/* DOCUMENTS */}
               <section>
                 <div className="app-section-header">
-                  <FileText size={18} />
+                  <FileText className="app-section-icon" size={20} />
                   <span className="app-section-title">Documents</span>
                 </div>
                 <div className="app-doc-list">
                   {selectedApplicant.resume_url ? (
                     <div className="app-doc-card">
                       <div className="app-doc-info">
-                        <div className="app-doc-icon-box"><FileText size={20} /></div>
+                        <div className="app-doc-icon-box"><FileText size={24} strokeWidth={1.5} /></div>
                         <div className="app-doc-details">
                           <span className="app-doc-type">Resume</span>
-                          <span className="app-doc-name">Submitted</span>
+                          <span className="app-doc-name">{selectedApplicant.name.replace(/\s+/g, '_')}_Resume.pdf</span>
                         </div>
                       </div>
                       <div className="app-doc-actions">
-                        <button className="app-btn-view" onClick={() => window.open(selectedApplicant.resume_url, '_blank')}>View PDF</button>
+                        <button className="app-btn-doc" onClick={() => window.open(selectedApplicant.resume_url, '_blank')}>
+                          <Eye size={16} /> View
+                        </button>
+                        <a href={selectedApplicant.resume_url} target="_blank" rel="noreferrer" style={{textDecoration: 'none'}}>
+                          <button className="app-btn-doc">
+                            <Download size={16} /> Download
+                          </button>
+                        </a>
                       </div>
                     </div>
                   ) : <p className="no-data" style={{fontSize: '0.85rem', color: '#718096', paddingLeft: '10px'}}>No Resume Uploaded</p>}
@@ -297,14 +332,21 @@ const Applicants = () => {
                   {selectedApplicant.cover_letter_url ? (
                     <div className="app-doc-card">
                       <div className="app-doc-info">
-                        <div className="app-doc-icon-box"><FileText size={20} /></div>
+                        <div className="app-doc-icon-box"><FileText size={24} strokeWidth={1.5} /></div>
                         <div className="app-doc-details">
                           <span className="app-doc-type">Cover Letter</span>
-                          <span className="app-doc-name">Submitted</span>
+                          <span className="app-doc-name">{selectedApplicant.name.replace(/\s+/g, '_')}_CoverLetter.pdf</span>
                         </div>
                       </div>
                       <div className="app-doc-actions">
-                        <button className="app-btn-view" onClick={() => window.open(selectedApplicant.cover_letter_url, '_blank')}>View PDF</button>
+                        <button className="app-btn-doc" onClick={() => window.open(selectedApplicant.cover_letter_url, '_blank')}>
+                          <Eye size={16} /> View
+                        </button>
+                        <a href={selectedApplicant.cover_letter_url} target="_blank" rel="noreferrer" style={{textDecoration: 'none'}}>
+                          <button className="app-btn-doc">
+                            <Download size={16} /> Download
+                          </button>
+                        </a>
                       </div>
                     </div>
                   ) : <p className="no-data" style={{fontSize: '0.85rem', color: '#718096', paddingLeft: '10px'}}>No Cover Letter Uploaded</p>}
@@ -314,14 +356,16 @@ const Applicants = () => {
               {/* MEDICAL CONDITION */}
               <section>
                 <div className="app-section-header">
-                  <CheckCircle size={18} />
-                  <span className="app-section-title">Medical Condition</span>
+                  <FileText className="app-section-icon" size={20} />
+                  <span className="app-section-title">Medical Condition Declaration</span>
                 </div>
                 <div className="app-medical-box">
                   <div className="app-info-item">
                     <span className="app-info-label">Has Pre-existing Medical Conditions?</span>
-                    <span className="app-info-value" style={{ color: selectedApplicant.medicalCondition === 'yes' ? '#e74c3c' : '#2ecc71' }}>
-                      {selectedApplicant.medicalCondition ? selectedApplicant.medicalCondition.toUpperCase() : 'NO'}
+                    <span className="app-info-value">
+                      {selectedApplicant.medicalCondition 
+                        ? selectedApplicant.medicalCondition.charAt(0).toUpperCase() + selectedApplicant.medicalCondition.slice(1).toLowerCase() 
+                        : 'No'}
                     </span>
                   </div>
                   {selectedApplicant.medicalCondition === 'yes' && (
@@ -336,12 +380,20 @@ const Applicants = () => {
 
             {/* ACTION BUTTONS */}
             {selectedApplicant.status.toLowerCase() === 'applied' && (
-              <div className="app-modal-footer">
-                <button className="app-btn-reject" onClick={() => handleUpdateStatus(selectedApplicant.id, 'Rejected')}>
-                   Reject Application
+              <div className="app-modal-footer" style={{ display: 'flex', gap: '15px', padding: '0 24px 24px 24px' }}>
+                <button 
+                  className="app-btn-approve" 
+                  style={{ flex: 1, padding: '14px', fontSize: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center' }} 
+                  onClick={() => handleUpdateStatus(selectedApplicant.id, 'Interview')}
+                >
+                   Approve for Interview
                 </button>
-                <button className="app-btn-approve" onClick={() => handleUpdateStatus(selectedApplicant.id, 'Interview')}>
-                   Approve Interview
+                <button 
+                  className="app-btn-reject" 
+                  style={{ flex: 1, padding: '14px', fontSize: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }} 
+                  onClick={() => handleUpdateStatus(selectedApplicant.id, 'Rejected')}
+                >
+                   <XCircle size={18} strokeWidth={2.5} /> Reject Application
                 </button>
               </div>
             )}
